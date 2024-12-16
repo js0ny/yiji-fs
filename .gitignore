@@ -1,0 +1,5 @@
+.vscode/
+.idea/
+yiji-fs/bin/
+yiji-fs/obj/
+*.user
