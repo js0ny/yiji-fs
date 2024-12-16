@@ -2,13 +2,32 @@
 open Lunar
 open System.CommandLine
 
-let printColored text color enable =
+let coloredText text color enable = 
     if enable then
-        Console.ForegroundColor <- color
-    printf text
-    Console.ResetColor()
+        match color with
+                       | "Green" -> 32
+                       | "Red" -> 31
+                       | _ -> 0
+        |> fun code -> $"\x1b[{code}m{text}\x1b[0m"
+    else
+        text
     
-let main argv =
+let formatYiJi title items count color enableColor =
+    let truncated = items |> Seq.truncate count |> Seq.toList
+    let header = coloredText title color enableColor
+    let content = truncated |> String.concat " "
+    $"{header} {content}"
+    
+let execute count showYi showJi date showColor =
+    let lunar = Lunar.FromDate date
+    [
+        if showYi then
+            formatYiJi "宜：" lunar.DayYi count "Green" showColor
+        if showJi then
+            formatYiJi "忌：" lunar.DayJi count "Red" showColor
+    ] |> String.concat "\n" |> printfn "%s"
+
+let createRootCommand () =
     let rootCommand = Command(
         "yiji",
         description = "获得今天的宜忌信息")
@@ -48,31 +67,10 @@ let main argv =
     rootCommand.AddOption dateOpt
     rootCommand.AddOption colorOpt
     
-    rootCommand.SetHandler(
-        fun count showYi showJi date showColor->
-            // let lunar = Lunar.FromDate(DateTime.Today)
-            let lunar = Lunar.FromDate(date)
-
-            if showYi then
-                let yi = 
-                    List.ofSeq (lunar.DayYi :> seq<string>)
-                    |> List.truncate count
-                printColored "宜: " ConsoleColor.Green showColor
-                yi |> List.iter (fun s -> printf $"{s} ")
-                printfn ""
-
-            if showJi then
-                let ji =
-                    List.ofSeq (lunar.DayJi :> seq<string>)
-                    |> List.truncate count
-                printColored "忌: " ConsoleColor.Red showColor
-                ji |> List.iter (fun s -> printf $"{s} ")
-                printfn ""
-        , countOpt, yiOpt, jiOpt, dateOpt, colorOpt)
-
-    rootCommand.Invoke (argv : string[])
+    rootCommand.SetHandler(execute, countOpt, yiOpt, jiOpt, dateOpt, colorOpt)
+    rootCommand
 
 [<EntryPoint>]
-let main' argv =
-    main argv |> ignore
+let main argv =
+    createRootCommand().Invoke(argv) |> ignore
     0
